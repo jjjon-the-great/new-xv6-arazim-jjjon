@@ -91,3 +91,15 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_trace(void)
+{
+  uint64 mask;
+  //printf("here?\n");
+  argaddr(0, &mask);
+  //printf("nope\n");
+  myproc()->trace_mask = mask;
+  //printf("huh?\n");
+  return 0;
+}
