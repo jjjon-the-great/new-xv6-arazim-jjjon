@@ -80,3 +80,36 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+
+uint64 kalloc_test(void){
+  /*
+  int MAX_NUM = 50000;
+  void *pages[MAX_NUM];
+  uint64 i = 0;
+  for (i = 0; i < MAX_NUM; i++){
+    //printf("allocating\n");
+    pages[0] = kalloc();
+    if (pages[0] == 0) break;
+    kfree(pages[0]);
+  }
+    */
+  /*
+  for (int j = i-1; j >= 0; j--){
+    kfree(pages[j]);
+  }*/
+
+
+  //its big brain time:
+  struct run *r;
+  uint64 counter = 0;
+  acquire(&kmem.lock);
+  r = kmem.freelist;
+  while(r){
+    r = r->next;
+    counter ++;
+  }
+  release(&kmem.lock);
+  return counter*PGSIZE;
+}
+
