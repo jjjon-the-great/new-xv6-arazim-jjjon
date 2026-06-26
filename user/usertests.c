@@ -2427,21 +2427,25 @@ textwrite(char *s)
 {
   int pid;
   int xstatus;
-  
+  //exit(0);
   pid = fork();
   if(pid == 0) {
+    printf("editing\n");
     volatile int *addr = (int *) 0;
     *addr = 10;
+    printf("exiting normally\n");
     exit(1);
   } else if(pid < 0){
     printf("%s: fork failed\n", s);
     exit(1);
   }
   wait(&xstatus);
-  if(xstatus == -1)  // kernel killed child?
-    exit(0);
-  else
-    exit(xstatus);
+  if(xstatus == -1){  // kernel killed child?
+    //printf("exiting with zero");
+    exit(0);}
+  else{
+    //printf("xstatus is %d\n", xstatus);
+    exit(xstatus);}
 }
 
 // regression test. copyin(), copyout(), and copyinstr() used to cast

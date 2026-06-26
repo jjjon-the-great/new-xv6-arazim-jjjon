@@ -72,9 +72,32 @@ sys_sleep(void)
 
 #ifdef LAB_PGTBL
 int
-sys_pgaccess(void)
-{
-  // lab pgtbl: your code here.
+sys_pgaccess(void){
+  //definitions:
+  uint64 first_page;
+  int num_pages;
+  uint64 answer_address;
+  struct proc *p = myproc();
+  uint answer = 0;
+
+  //argument parsing
+  argaddr(0, &first_page);
+  argint(1, &num_pages);
+  argaddr(2, &answer_address);
+  if (num_pages>32) num_pages = 32;
+
+  //magic
+  for (int i = 0; i < num_pages; i ++){
+    pte_t * page = walk(p->pagetable, (first_page+i*PGSIZE), 0);
+    if ((*page) & (PTE_A)){
+      answer += ((1L << i));
+      *page = (*page) & (~PTE_A);
+    }
+  }
+
+  //output
+  if (copyout(p->pagetable, answer_address, (char*)&answer, sizeof(uint)) < 0) return -1;
+  
   return 0;
 }
 #endif
@@ -100,3 +123,4 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
