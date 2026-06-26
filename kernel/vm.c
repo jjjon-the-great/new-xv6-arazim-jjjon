@@ -15,6 +15,8 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
 
+void vmprintrec(pagetable_t pagetable, int depth);
+
 // Make a direct-map page table for the kernel.
 pagetable_t
 kvmmake(void)
@@ -288,10 +290,43 @@ freewalk(pagetable_t pagetable)
 
 void 
 vmprint(pagetable_t pagetable)
-{
-  printf("PYTZOV!\n");
+{ 
+  printf("page table %p\n", pagetable);
+  vmprintrec(pagetable, 1);
+  return;
+  /*
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      vmprint((pagetable_t)child);
+      //pagetable[i] = 0;
+    } else if(pte & PTE_V){
+      panic("freewalk: leaf");
+    }
+  }
+  printf("PYTZOV!\n"); */
 }
 
+void vmprintrec(pagetable_t pagetable, int depth){
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if (!pte) continue;
+    for (int d = 0; d<depth; d++){
+      printf(" ..");
+    }
+    printf("%d: pte %p pa %p\n", i, pte, PTE2PA(pte));
+    if(((pte & PTE_V) && ((pte & (PTE_R|PTE_W|PTE_X)) == 0))){
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      vmprintrec((pagetable_t)child, depth + 1);
+      //pagetable[i] = 0;
+    } else if(pte & PTE_V){
+      continue;;
+    }
+  }
+}
 // Free user memory pages,
 // then free page-table pages.
 void
