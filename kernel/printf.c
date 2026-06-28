@@ -25,6 +25,26 @@ static struct {
 
 static char digits[] = "0123456789abcdef";
 
+uint64 * fp_to_ra(uint64 fp){
+  return (uint64 *) * (uint64 * )(fp - 8);
+}
+
+
+uint64 prev_fp(uint64 fp){
+  return * (uint64 *)(fp - 16);
+} 
+
+void 
+backtrace(void){
+  uint64 current_fp = r_fp();
+  while (1){
+    if ((uint64)fp_to_ra(current_fp) < 0x0000000080000000) break;
+    printf("%p\n", fp_to_ra(current_fp));
+    current_fp = prev_fp(current_fp);
+  }
+  return;
+}
+
 static void
 printint(int xx, int base, int sign)
 {
@@ -118,6 +138,8 @@ printf(char *fmt, ...)
 void
 panic(char *s)
 {
+  printf("backtrace:\n");
+  backtrace();
   pr.locking = 0;
   printf("panic: ");
   printf(s);
