@@ -29,6 +29,8 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+
+
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -55,7 +57,7 @@ usertrap(void)
 
     if(killed(p))
       exit(-1);
-
+    
     // sepc points to the ecall instruction,
     // but we want to return to the next instruction.
     p->trapframe->epc += 4;
@@ -77,8 +79,17 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2){
+    if (p->alarm_interval && p->alarm_interval == p->ticks_passed && !p->in_trap){
+      p->in_trap = 1;
+      *p->reserve_trapframe = *p->trapframe;
+      p->trapframe->epc = (uint64)p->handler;
+      p->ticks_passed = 0;
+    } else {
+      p->ticks_passed ++;
+    }
     yield();
+  }
 
   usertrapret();
 }

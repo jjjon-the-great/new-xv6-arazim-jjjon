@@ -47,8 +47,12 @@ test0()
 {
   int i;
   printf("test0 start\n");
+  //printf("address: %p\n", periodic);
+  //uint64 nabaz = 0;
+  //((void (*)(void)) 0x00000) ();
   count = 0;
   sigalarm(2, periodic);
+  printf("now giving %p\n", periodic);
   for(i = 0; i < 1000*500000; i++){
     if((i % 1000000) == 0)
       write(2, ".", 1);

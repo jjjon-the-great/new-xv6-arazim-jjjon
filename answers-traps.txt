@@ -1,0 +1,11 @@
+1) The a_i registers hold the arguments for functions. The register a2 holds 13 in the call to printf.
+
+2) Call is conducted inline by the compiler. it's answer is loaded to a1. 
+
+3) 0x658
+
+4) The next instruction address - 0x40.
+
+5) Hello world in hackerspeak
+
+6) what get's printed is what was in the register beforehand - so trash  
