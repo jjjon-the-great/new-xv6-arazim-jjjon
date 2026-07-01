@@ -1,0 +1,1 @@
+insert may add two locks simultaneously to the same place and thus wreck havoc
