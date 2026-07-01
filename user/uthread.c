@@ -33,8 +33,6 @@ struct context {
 struct thread {
   char       stack[STACK_SIZE]; /* the thread's stack */
   int        state;             /* FREE, RUNNING, RUNNABLE */
-  //void (*func)();               /* the thread's function*/
-  //int   is_first_run;           /* 1 if this is the thread's first run*/
   struct context * context;      /* context. */
 };
 
@@ -51,9 +49,6 @@ thread_init(void)
   // save thread 0's state.  thread_schedule() won't run the main thread ever
   // again, because its state is set to RUNNING, and thread_schedule() selects
   // a RUNNABLE thread.
-  /*for (int i = 0; i < MAX_THREAD, i++){
-    all_thread[i] = (struct thread *)malloc(sizeof(struct thread));
-  }*/
   current_thread = &all_thread[0];
   current_thread->state = RUNNING;
   current_thread->context = (struct context *)malloc(sizeof(struct context));
@@ -64,12 +59,10 @@ void
 thread_schedule(void)
 {
   struct thread *t, *next_thread;
-  //printf("current %p status %p\n", current_thread, current_thread->state);
   /* Find another runnable thread. */
   next_thread = 0;
   t = current_thread + 1;
   for(int i = 0; i < MAX_THREAD; i++){
-    //printf("checking %p stats %d\n", t, t->state);
     if(t >= all_thread + MAX_THREAD)
       t = all_thread+1;
     if(t->state == RUNNABLE) {
@@ -78,7 +71,6 @@ thread_schedule(void)
     }
     t = t + 1;
   }
-  //printf("selected thread %p\n", t);
 
   if (next_thread == 0) {
     printf("thread_schedule: no runnable threads\n");
@@ -86,7 +78,6 @@ thread_schedule(void)
   }
 
   if (current_thread != next_thread) {   
-    //printf("current thread %p, current status %p\n", current_thread, current_thread->state);      /* switch threads?  */
     next_thread->state = RUNNING;
     t = current_thread;
     if (current_thread->state == RUNNING){
@@ -94,30 +85,9 @@ thread_schedule(void)
     } else {
       free(current_thread->context);
     }
-    //current_thread->state = RUNNABLE;
     current_thread = next_thread;
-    //printf("current thread %p, current status %p\n", t, t->state);
-    //printf("status located at %p\n", &(t->state));
-    //printf("were editing %p\n",(uint64)(t->context));
-    /* YOUR CODE HERE
-     * Invoke thread_switch to switch from t to next_thread:
-     * thread_switch(??, ??);
-     * 
-     */
-    //thread_switch();
-    //printf("from %p to %p\n", t, current_thread);
-    //printf("trying to switch - next program is %p\n", next_thread->context->ra);
-    //printf("well %d\n", (next_thread->context->ra));
-    //printf("first before: %p\n", t->context->ra);
-    //printf("threads: %p, %p\n", t, next_thread);
-    //printf("contexts: %p, %p\n", t->context, next_thread->context);
-    //printf("specific addresses: %p, %p\n", &(t->context->ra), &(next_thread->context->ra));
-    //printf("args: %p, %p\n", (uint64)(t->context), (uint64)(next_thread->context));
     thread_switch((uint64)(t->context), (uint64)(current_thread->context));
-    //printf("first after: %p\n", t->context->ra);
-    //printf("nothing happened?\n");
   } else{
-    //printf("weird\n");
     next_thread = 0; }
 }
 
@@ -130,22 +100,14 @@ thread_create(void (*func)())
     if (t->state == FREE) break;
   }
   t->state = RUNNABLE;
-  //t->is_first_run = 1;
-  //t->func = func;
   t->context = (struct context *)malloc(sizeof(struct context));
   t->context->ra = (uint64)func;
   t->context->sp = ((uint64)t->stack)+STACK_SIZE;
-  //*(uint64 *)&(t->stack) = (uint64)func;
-  //printf("thread %p with f %p s %p\n", t ,t->context->ra, t->context->sp );
-  // YOUR CODE HERE
 }
 
 void 
 thread_yield(void)
 { 
-  //printf("current thread is %p\n", current_thread);
-  //current_thread->state = RUNNABLE;
-  //printf("status is %d\n", current_thread->state);
   thread_schedule();
 }
 
