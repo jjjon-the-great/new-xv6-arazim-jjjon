@@ -82,7 +82,8 @@ void test1(void)
 //
 int
 countfree()
-{
+{ 
+  //printf("starting countfree\n");
   uint64 sz0 = (uint64)sbrk(0);
   int n = 0;
 
@@ -92,10 +93,14 @@ countfree()
       break;
     }
     // modify the memory to make sure it's really allocated.
+    //printf("attempt\n");
     *(char *)(a + 4096 - 1) = 1;
+    //printf("done\n");
     n += 1;
   }
+  //printf("exited loop\n");
   sbrk(-((uint64)sbrk(0) - sz0));
+  //printf("ending countfree\n");
   return n;
 }
 
