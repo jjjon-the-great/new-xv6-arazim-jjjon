@@ -23,7 +23,7 @@
 #include "fs.h"
 #include "buf.h"
 
-struct {
+struct bcache{
   struct spinlock lock;
   struct buf buf[NBUF];
 
@@ -33,12 +33,63 @@ struct {
   struct buf head;
 } bcache;
 
+/*struct bucket{
+  struct buf bufs[BUCKETSIZE];
+  struct spinlock lock;
+};*/
+struct bhash{
+  struct bcache bucks[NBUCKET];
+} bhash;
+
+int bucket_hash(int blockno){
+  return (blockno*17)%NBUCKET;
+}
+
+struct bcache get_bucket(int blockno){
+  return bhash.bucks[bucket_hash(blockno)];
+}
+
+
+void bucketinit(struct bcache * buck , int bnum){
+  struct buf *b;
+  //char bname[10] = "bcache";
+  //bname[6] = bnum;
+  //bname[7] = '\n'; 
+  //char bufname[10] = "buffer";
+  //bufname[6] = bnum;
+  //bufname[7] = '\n'; 
+  //printf("buck is %p, bcache is %p, int is %d, bhash is %p\n", &(buck->lock), &bcache, bnum, &bhash);
+  initlock(&buck->lock, "bcaches");
+  //return;
+  // Create linked list of buffers
+  buck->head.prev = &buck->head;
+  buck->head.next = &buck->head;
+  for(b = buck->buf; b < buck->buf+NBUF; b++){
+    b->next = buck->head.next;
+    b->prev = &buck->head;
+    initsleeplock(&b->lock, "buffer");
+    buck->head.next->prev = b;
+    buck->head.next = b;
+  }
+}
+
+void hashinit(void){
+  for (int i = 0; i < NBUCKET; i++ ){
+    bucketinit(bhash.bucks + i, i);
+    printf("done!\n");
+  }
+  printf("exiting hashinit\n");
+}
+
 void
 binit(void)
 {
   struct buf *b;
 
   initlock(&bcache.lock, "bcache");
+
+  //experimental
+  hashinit();
 
   // Create linked list of buffers
   bcache.head.prev = &bcache.head;
@@ -50,6 +101,7 @@ binit(void)
     bcache.head.next->prev = b;
     bcache.head.next = b;
   }
+  printf("exiting trueinit\n");
 }
 
 // Look through buffer cache for block on device dev.
@@ -59,7 +111,7 @@ static struct buf*
 bget(uint dev, uint blockno)
 {
   struct buf *b;
-
+  //printf("bget enter\n");
   acquire(&bcache.lock);
 
   // Is the block already cached?
@@ -68,6 +120,7 @@ bget(uint dev, uint blockno)
       b->refcnt++;
       release(&bcache.lock);
       acquiresleep(&b->lock);
+      //printf("bget exit\n");
       return b;
     }
   }
@@ -82,9 +135,11 @@ bget(uint dev, uint blockno)
       b->refcnt = 1;
       release(&bcache.lock);
       acquiresleep(&b->lock);
+      //printf("bget exit\n");
       return b;
     }
   }
+  //printf("bget exit\n");
   panic("bget: no buffers");
 }
 
@@ -93,22 +148,26 @@ struct buf*
 bread(uint dev, uint blockno)
 {
   struct buf *b;
-
+  //printf("bread enter\n");
   b = bget(dev, blockno);
   if(!b->valid) {
     virtio_disk_rw(b, 0);
     b->valid = 1;
   }
+  //printf("bread exit\n");
   return b;
+  
 }
 
 // Write b's contents to disk.  Must be locked.
 void
 bwrite(struct buf *b)
 {
+  //printf("bwrite enter\n");
   if(!holdingsleep(&b->lock))
     panic("bwrite");
   virtio_disk_rw(b, 1);
+  //printf("bwrite exit\n");
 }
 
 // Release a locked buffer.
@@ -116,6 +175,7 @@ bwrite(struct buf *b)
 void
 brelse(struct buf *b)
 {
+  //printf("brelse enter\n");
   if(!holdingsleep(&b->lock))
     panic("brelse");
 
@@ -134,20 +194,25 @@ brelse(struct buf *b)
   }
   
   release(&bcache.lock);
+  //printf("brelse exit\n");
 }
 
 void
 bpin(struct buf *b) {
+  //printf("bpin enter\n");
   acquire(&bcache.lock);
   b->refcnt++;
   release(&bcache.lock);
+  //rintf("bpin exit\n");
 }
 
 void
 bunpin(struct buf *b) {
+  //printf("bunpin enter\n");
   acquire(&bcache.lock);
   b->refcnt--;
   release(&bcache.lock);
+  //printf("bunpin exit\n");
 }
 
 
