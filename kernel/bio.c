@@ -31,6 +31,7 @@ struct bcache{
   // Sorted by how recently the buffer was used.
   // head.next is most recent, head.prev is least.
   struct buf head;
+  int in_use;
 } bcache;
 
 /*struct bucket{
@@ -45,8 +46,11 @@ int bucket_hash(int blockno){
   return (blockno*17)%NBUCKET;
 }
 
-struct bcache get_bucket(int blockno){
-  return bhash.bucks[bucket_hash(blockno)];
+struct bcache * get_bucket(int blockno){
+  //printf("calcuting hash\n");
+  //printf("num is %d\n", bucket_hash(blockno));
+  //printf("we have %p\n", bhash.bucks);
+  return bhash.bucks + bucket_hash(blockno);
 }
 
 
@@ -64,7 +68,8 @@ void bucketinit(struct bcache * buck , int bnum){
   // Create linked list of buffers
   buck->head.prev = &buck->head;
   buck->head.next = &buck->head;
-  for(b = buck->buf; b < buck->buf+NBUF; b++){
+  buck->in_use=0;
+  for(b = buck->buf; b < buck->buf+BUCKETSIZE; b++){
     b->next = buck->head.next;
     b->prev = &buck->head;
     initsleeplock(&b->lock, "buffer");
@@ -76,9 +81,9 @@ void bucketinit(struct bcache * buck , int bnum){
 void hashinit(void){
   for (int i = 0; i < NBUCKET; i++ ){
     bucketinit(bhash.bucks + i, i);
-    printf("done!\n");
+    //printf("done!\n");
   }
-  printf("exiting hashinit\n");
+  //printf("exiting hashinit\n");
 }
 
 void
@@ -101,7 +106,7 @@ binit(void)
     bcache.head.next->prev = b;
     bcache.head.next = b;
   }
-  printf("exiting trueinit\n");
+  //printf("exiting trueinit\n");
 }
 
 // Look through buffer cache for block on device dev.
@@ -109,16 +114,19 @@ binit(void)
 // In either case, return locked buffer.
 static struct buf*
 bget(uint dev, uint blockno)
-{
+{ 
+  //printf("bget enter\n");
+  struct bcache * buck = get_bucket(blockno);
+  //printf("WE HAVE HASH!\n");
   struct buf *b;
   //printf("bget enter\n");
-  acquire(&bcache.lock);
+  acquire(&buck->lock);
 
   // Is the block already cached?
-  for(b = bcache.head.next; b != &bcache.head; b = b->next){
+  for(b = buck->head.next; b != &buck->head; b = b->next){
     if(b->dev == dev && b->blockno == blockno){
       b->refcnt++;
-      release(&bcache.lock);
+      release(&buck->lock);
       acquiresleep(&b->lock);
       //printf("bget exit\n");
       return b;
@@ -127,13 +135,13 @@ bget(uint dev, uint blockno)
 
   // Not cached.
   // Recycle the least recently used (LRU) unused buffer.
-  for(b = bcache.head.prev; b != &bcache.head; b = b->prev){
+  for(b = buck->head.prev; b != &buck->head; b = b->prev){
     if(b->refcnt == 0) {
       b->dev = dev;
       b->blockno = blockno;
       b->valid = 0;
       b->refcnt = 1;
-      release(&bcache.lock);
+      release(&buck->lock);
       acquiresleep(&b->lock);
       //printf("bget exit\n");
       return b;
@@ -150,6 +158,7 @@ bread(uint dev, uint blockno)
   struct buf *b;
   //printf("bread enter\n");
   b = bget(dev, blockno);
+  //printf("bret!\n");
   if(!b->valid) {
     virtio_disk_rw(b, 0);
     b->valid = 1;
@@ -175,43 +184,46 @@ bwrite(struct buf *b)
 void
 brelse(struct buf *b)
 {
+  struct bcache * buck = get_bucket(b->blockno);
   //printf("brelse enter\n");
   if(!holdingsleep(&b->lock))
     panic("brelse");
 
   releasesleep(&b->lock);
 
-  acquire(&bcache.lock);
+  acquire(&buck->lock);
   b->refcnt--;
   if (b->refcnt == 0) {
     // no one is waiting for it.
     b->next->prev = b->prev;
     b->prev->next = b->next;
-    b->next = bcache.head.next;
-    b->prev = &bcache.head;
-    bcache.head.next->prev = b;
-    bcache.head.next = b;
+    b->next = buck->head.next;
+    b->prev = &buck->head;
+    buck->head.next->prev = b;
+    buck->head.next = b;
   }
   
-  release(&bcache.lock);
+  release(&buck->lock);
   //printf("brelse exit\n");
 }
 
 void
 bpin(struct buf *b) {
   //printf("bpin enter\n");
-  acquire(&bcache.lock);
+  struct bcache * buck = get_bucket(b->blockno);
+  acquire(&buck->lock);
   b->refcnt++;
-  release(&bcache.lock);
-  //rintf("bpin exit\n");
+  release(&buck->lock);
+  //printf("bpin exit\n");
 }
 
 void
 bunpin(struct buf *b) {
+  struct bcache * buck = get_bucket(b->blockno);
   //printf("bunpin enter\n");
-  acquire(&bcache.lock);
+  acquire(&buck->lock);
   b->refcnt--;
-  release(&bcache.lock);
+  release(&buck->lock);
   //printf("bunpin exit\n");
 }
 
